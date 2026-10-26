@@ -1,7 +1,8 @@
 {
-  "name": "Tainted Cain Crafting Calculator",
-  "short_name": "T. Cain Crafting",
-  "description": "Bag of Crafting calculator for Tainted Cain in The Binding of Isaac: Repentance and Repentance+.",
+  "name": "里该隐合成计算器",
+  "short_name": "里该隐合成",
+  "description": "适用于《以撒的结合：忏悔》和《忏悔+》的里该隐合成袋计算器。",
+  "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

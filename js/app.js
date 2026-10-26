@@ -1,26 +1,27 @@
-import data from './data.js?v=5';
-import { PICKUPS, craft, parseSeed, normalizeSeed, bagScore } from './crafting.js?v=5';
-import { recipeCost, rankRecipes, packRecipes, TOTAL_BAGS } from './finder.js?v=5';
+import data from './data.js?v=6';
+import { itemName, itemQuote, matchesItem, startsWithItem, compareItems, wikiUrl } from './localization.js?v=6';
+import { PICKUPS, craft, parseSeed, normalizeSeed, bagScore } from './crafting.js?v=6';
+import { recipeCost, rankRecipes, packRecipes, TOTAL_BAGS } from './finder.js?v=6';
 
 const PICKUP_GROUPS = [
-  ['Hearts', [1, 2, 3, 4, 5, 6, 7]],
-  ['Coins', [8, 9, 10, 11, 26]],
-  ['Keys', [12, 13, 14, 25]],
-  ['Bombs', [15, 16, 17]],
-  ['Batteries', [18, 19, 20, 28]],
-  ['Other', [21, 22, 27, 23, 24, 29]],
+  ['心', [1, 2, 3, 4, 5, 6, 7]],
+  ['硬币', [8, 9, 10, 11, 26]],
+  ['钥匙', [12, 13, 14, 25]],
+  ['炸弹', [15, 16, 17]],
+  ['电池', [18, 19, 20, 28]],
+  ['其他', [21, 22, 27, 23, 24, 29]],
 ];
 
 const MODIFIERS = [
-  ['lateStage', 'Womb or later', 'Chapter 4 onward. Vanishing Twin can no longer be crafted (outside Greed mode).'],
-  ['greed', 'Greed / Greedier mode', 'Removes items that are banned in Greed mode.'],
-  ['daily', 'Daily run', 'Removes items that are banned in daily runs.'],
-  ['challenge', 'Challenge run', 'Removes items that are banned in challenges.'],
-  ['keeper', 'Keeper or Tainted Keeper in the run', 'Co-op. Removes items Keeper cannot use.'],
-  ['lostBR', 'The Lost with Birthright in the run', 'Co-op. Removes items The Lost cannot use.'],
-  ['taintedLost', 'Tainted Lost in the run', 'Co-op. Only offensive items, and some low quality items are skipped.'],
-  ['sacredOrb', 'Holding Sacred Orb', 'No quality 0 or 1 items, and a third of quality 2 items are skipped.'],
-  ['goldenNo', 'Golden or stacked NO! trinket', 'No quality 0 items.'],
+  ['lateStage', '子宫及之后的楼层', '第四章起，无法再合成消失的胞胎（贪婪模式除外）。'],
+  ['greed', '贪婪／究极贪婪模式', '排除贪婪模式中禁用的道具。'],
+  ['daily', '每日挑战', '排除每日挑战中禁用的道具。'],
+  ['challenge', '挑战模式', '排除挑战模式中禁用的道具。'],
+  ['keeper', '本局有店主或里店主', '联机条件：排除店主无法使用的道具。'],
+  ['lostBR', '本局有持有长子名分的游魂', '联机条件：排除游魂无法使用的道具。'],
+  ['taintedLost', '本局有里游魂', '联机条件：仅保留进攻型道具，并跳过部分低品质道具。'],
+  ['sacredOrb', '持有十字圣球', '排除品质 0、1 的道具，并跳过三分之一的品质 2 道具。'],
+  ['goldenNo', '持有金色或叠加的“不！”饰品', '排除品质 0 的道具。'],
 ];
 
 // Turned off by "Rare ones off" in settings: cracked key, giga bomb, mega and golden
@@ -92,8 +93,7 @@ function itemIcon(id, size = 64) {
   return el;
 }
 
-const itemName = id => data.names[id]?.[0] ?? `Item #${id}`;
-const wikiUrl = id => 'https://bindingofisaacrebirth.wiki.gg/wiki/' + encodeURIComponent(itemName(id).replace(/ /g, '_'));
+
 
 // ---------- seed + version ----------
 
@@ -146,22 +146,22 @@ function renderBag() {
     slot.className = 'slot' + (id ? ' filled' : '');
     if (id) {
       slot.append(pickupIcon(id));
-      slot.title = `Remove ${PICKUPS[id].name}`;
-      slot.setAttribute('aria-label', `Remove ${PICKUPS[id].name}`);
+      slot.title = `移除${PICKUPS[id].name}`;
+      slot.setAttribute('aria-label', `移除${PICKUPS[id].name}`);
       slot.addEventListener('click', () => {
         state.bag.splice(i, 1);
         render();
       });
     } else {
       slot.disabled = true;
-      slot.setAttribute('aria-label', 'Empty slot');
+      slot.setAttribute('aria-label', '空槽位');
     }
     bag.append(slot);
   }
   $('bag-count').textContent = `${state.bag.length}/8`;
   const score = $('bag-score');
   score.hidden = state.bag.length === 0;
-  score.textContent = `Value ${bagScore(state.bag)}`;
+  score.textContent = `价值 ${bagScore(state.bag)}`;
 }
 
 // ---------- picker ----------
@@ -180,7 +180,7 @@ function renderPicker() {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'pick';
-      button.setAttribute('aria-label', `Add ${PICKUPS[id].name} (value ${PICKUPS[id].value})`);
+      button.setAttribute('aria-label', `添加${PICKUPS[id].name}（价值 ${PICKUPS[id].value}）`);
       const name = document.createElement('span');
       name.className = 'pick-name';
       name.textContent = PICKUPS[id].name;
@@ -276,7 +276,7 @@ function renderSettings() {
     const on = !state.excluded.includes(id);
     button.classList.toggle('off', !on);
     button.setAttribute('aria-pressed', String(on));
-    button.title = `${on ? 'Stop suggesting' : 'Suggest'} ${PICKUPS[id].name}`;
+    button.title = `${on ? '不再推荐' : '推荐'}${PICKUPS[id].name}`;
   }
 }
 
@@ -286,7 +286,7 @@ function stars(quality) {
   const el = document.createElement('span');
   el.className = 'stars';
   el.textContent = '★'.repeat(quality) + '☆'.repeat(4 - quality);
-  el.setAttribute('aria-label', `Quality ${quality}`);
+  el.setAttribute('aria-label', `品质 ${quality}`);
   return el;
 }
 
@@ -296,12 +296,12 @@ let lastResultKey = '';
 function computeOutcome(seed) {
   const missing = 8 - state.bag.length;
   if (missing > 0) {
-    return { message: `Add ${missing} more pickup${missing === 1 ? '' : 's'} to see what you'll craft.`, short: `${missing} more` };
+    return { message: `再添加 ${missing} 个掉落物即可查看合成结果。`, short: `还差 ${missing} 个` };
   }
   if (seed === null && state.seedText.replace(' ', '').length === 8) {
-    return { message: "That seed doesn't look right. Double check it on the pause screen.", short: 'Check seed' };
+    return { message: '种子无效，请对照暂停界面检查输入。', short: '请检查种子' };
   }
-  if (seed === null) return { message: 'Enter your run seed to see what you will craft.', short: 'Enter seed' };
+  if (seed === null) return { message: '输入本局种子即可查看合成结果。', short: '输入种子' };
   return craft(data.versions[state.version], seed, state.bag, state.opts);
 }
 
@@ -328,22 +328,22 @@ function renderResult(outcome) {
   name.textContent = itemName(id);
   const quote = document.createElement('p');
   quote.className = 'result-quote';
-  quote.textContent = data.names[id]?.[1] || ' ';
+  quote.textContent = itemQuote(id) || ' ';
   const meta = document.createElement('div');
   meta.className = 'result-meta';
   meta.append(stars(version.items[id][1]));
   if (fixed) {
     const chip = document.createElement('span');
     chip.className = 'chip';
-    chip.textContent = 'Fixed recipe';
-    chip.title = 'This recipe gives the same item on every seed';
+    chip.textContent = '固定配方';
+    chip.title = '此配方在任意种子下都会产出同一道具';
     meta.append(chip);
   }
   const link = document.createElement('a');
   link.href = wikiUrl(id);
   link.target = '_blank';
   link.rel = 'noopener';
-  link.textContent = 'Wiki ↗';
+  link.textContent = '中文维基 ↗';
   meta.append(link);
   info.append(name, quote, meta);
   main.append(itemIcon(id), info);
@@ -352,7 +352,7 @@ function renderResult(outcome) {
   if (fallbacks.length) {
     const section = document.createElement('div');
     section.className = 'fallbacks';
-    section.append(`Haven't unlocked ${itemName(id)} yet? The bag skips locked items and gives you:`);
+    section.append(`尚未解锁${itemName(id)}？合成袋会跳过未解锁的道具，改为产出：`);
     const list = document.createElement('ol');
     let previous = id;
     for (const next of fallbacks) {
@@ -362,7 +362,7 @@ function renderResult(outcome) {
       strong.textContent = itemName(next);
       const why = document.createElement('div');
       why.className = 'why';
-      why.textContent = `if ${itemName(previous)} is locked`;
+      why.textContent = `若尚未解锁${itemName(previous)}`;
       text.append(strong, why);
       li.append(itemIcon(next, 40), text);
       list.append(li);
@@ -428,7 +428,7 @@ function previewItems(seed) {
 /** Sorts preview entries by name, or best quality first (then by name). */
 function sortPreview(items, by) {
   const version = data.versions[state.version];
-  const byName = (a, b) => itemName(a.id).localeCompare(itemName(b.id));
+  const byName = (a, b) => compareItems(a.id, b.id);
   if (by !== 'quality') return [...items].sort(byName);
   return [...items].sort((a, b) => version.items[b.id][1] - version.items[a.id][1] || byName(a, b));
 }
@@ -448,7 +448,7 @@ function renderPreview(seed) {
   const missing = 8 - state.bag.length;
   if (seed === null) {
     $('preview-count').textContent = '';
-    $('preview-note').textContent = 'Enter a valid seed to see every item the last pickups could make.';
+    $('preview-note').textContent = '输入有效种子，查看补齐剩余掉落物后可合成的道具。';
     search.hidden = true;
     more.hidden = true;
     list.replaceChildren();
@@ -458,23 +458,23 @@ function renderPreview(seed) {
   const version = data.versions[state.version];
   const items = sortPreview(previewItems(seed), state.previewSort);
   const query = search.value.trim().toLowerCase();
-  const matches = query ? items.filter(e => itemName(e.id).toLowerCase().includes(query)) : items;
+  const matches = query ? items.filter(e => matchesItem(e.id, query)) : items;
   const shown = previewShowAll || query ? matches : matches.slice(0, PREVIEW_PAGE);
 
   search.hidden = false;
-  $('preview-count').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
+  $('preview-count').textContent = `${items.length} 种道具`;
   $('preview-note').textContent =
-    `Every way to add the last ${missing === 1 ? 'pickup' : `${missing} pickups`}`
-    + (state.excluded.length ? ', except pickups turned off in Settings' : '')
-    + '. Tap one to add it. Assumes everything is unlocked.';
+    `补齐剩余 ${missing} 个掉落物的所有可能结果`
+    + (state.excluded.length ? '（已排除设置中关闭的掉落物）' : '')
+    + '。点击即可添加材料。假定所有道具均已解锁。';
 
   const rows = shown.map(entry => {
     const li = document.createElement('li');
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'preview-row';
-    const addNames = entry.add.map(p => PICKUPS[p].name).join(' and ');
-    row.setAttribute('aria-label', `Add ${addNames} to make ${itemName(entry.id)}`);
+    const addNames = entry.add.map(p => PICKUPS[p].name).join('、');
+    row.setAttribute('aria-label', `添加${addNames}，合成${itemName(entry.id)}`);
     const info = document.createElement('span');
     info.className = 'preview-info';
     const name = document.createElement('strong');
@@ -483,12 +483,12 @@ function renderPreview(seed) {
     if (entry.ways > 1) {
       const ways = document.createElement('span');
       ways.className = 'preview-ways';
-      ways.textContent = `${entry.ways} ways`;
+      ways.textContent = `${entry.ways} 种配方`;
       info.append(ways);
     }
     const add = document.createElement('span');
     add.className = 'preview-add';
-    add.title = `Add ${addNames}`;
+    add.title = `添加${addNames}`;
     add.append('+', ...entry.add.map(p => pickupIcon(p)));
     row.append(itemIcon(entry.id, 40), info, add);
     row.addEventListener('click', () => {
@@ -502,13 +502,13 @@ function renderPreview(seed) {
   if (!rows.length) {
     const li = document.createElement('li');
     li.className = 'preview-empty';
-    li.textContent = `No reachable item matches "${search.value.trim()}".`;
+    li.textContent = `可合成的道具中没有与“${search.value.trim()}”匹配的结果。`;
     rows.push(li);
   }
   list.replaceChildren(...rows);
 
   more.hidden = shown.length >= matches.length;
-  more.textContent = `Show all ${matches.length}`;
+  more.textContent = `显示全部 ${matches.length} 种道具`;
 }
 
 $('preview-search').addEventListener('input', () => renderPreview(parseSeed(state.seedText)));
@@ -540,7 +540,7 @@ function craftableItems(versionKey) {
     const version = data.versions[versionKey];
     const ids = new Set(Object.values(version.fixed));
     for (const pool of CRAFT_POOLS) for (const [id] of version.pools[pool]) ids.add(id);
-    craftableCache[versionKey] = [...ids].filter(id => data.names[id]).sort((a, b) => itemName(a).localeCompare(itemName(b)));
+    craftableCache[versionKey] = [...ids].filter(id => data.names[id]).sort((a, b) => compareItems(a, b));
   }
   return craftableCache[versionKey];
 }
@@ -553,7 +553,7 @@ let finderShowAll = false;
 function startFinderSearch(key, seed) {
   if (finderJob?.key === key) return;
   finderWorker?.terminate();
-  const worker = new Worker(new URL('./finder-worker.js?v=5', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./finder-worker.js?v=6', import.meta.url), { type: 'module' });
   finderWorker = worker;
   finderJob = { key, progress: 0 };
   const finish = result => {
@@ -594,9 +594,9 @@ function renderFinderMatches() {
     return;
   }
   const version = data.versions[state.version];
-  const ids = craftableItems(state.version).filter(id => itemName(id).toLowerCase().includes(query));
+  const ids = craftableItems(state.version).filter(id => matchesItem(id, query));
   // Names that start with the query first.
-  ids.sort((a, b) => itemName(b).toLowerCase().startsWith(query) - itemName(a).toLowerCase().startsWith(query));
+  ids.sort((a, b) => startsWithItem(b, query) - startsWithItem(a, query));
   const rows = ids.slice(0, 8).map(id => {
     const li = document.createElement('li');
     const row = document.createElement('button');
@@ -615,7 +615,7 @@ function renderFinderMatches() {
   if (!rows.length) {
     const li = document.createElement('li');
     li.className = 'preview-empty';
-    li.textContent = `No craftable item matches "${raw}".`;
+    li.textContent = `没有与“${raw}”匹配的可合成道具。`;
     rows.push(li);
   }
   list.replaceChildren(...rows);
@@ -635,7 +635,7 @@ function pickupCounts(pickups) {
   });
 }
 
-const pickupNames = pickups => pickups.map(p => PICKUPS[p].name).join(', ');
+const pickupNames = pickups => pickups.map(p => PICKUPS[p].name).join('、');
 
 /** One recipe; with pickups in the bag, shows what to add (and drop) instead of the whole recipe. */
 function recipeRow({ recipe, add, drop }) {
@@ -646,20 +646,20 @@ function recipeRow({ recipe, add, drop }) {
   const icons = document.createElement('span');
   icons.className = 'recipe-icons';
   if (!state.bag.length) {
-    row.setAttribute('aria-label', `Put ${pickupNames(recipe)} in the bag`);
+    row.setAttribute('aria-label', `将${pickupNames(recipe)}放入合成袋`);
     icons.append(...pickupCounts(recipe));
   } else {
     const parts = [];
-    if (add.length) parts.push(`add ${pickupNames(add)}`);
-    if (drop.length) parts.push(`remove ${pickupNames(drop)}`);
-    row.setAttribute('aria-label', parts.length ? parts.join(' and ') : 'Your bag already makes this');
+    if (add.length) parts.push(`添加${pickupNames(add)}`);
+    if (drop.length) parts.push(`移除${pickupNames(drop)}`);
+    row.setAttribute('aria-label', parts.length ? parts.join('、') : '当前合成袋已可合成此道具');
     if (add.length) icons.append(sign('+'), ...pickupCounts(add));
     if (drop.length) icons.append(sign('−', 'drop'), ...pickupCounts(drop).map(el => (el.classList.add('drop'), el)));
-    if (!add.length && !drop.length) icons.append('Your bag');
+    if (!add.length && !drop.length) icons.append('当前合成袋');
   }
   const use = document.createElement('span');
   use.className = 'recipe-use';
-  use.textContent = 'Use';
+  use.textContent = '使用';
   row.append(icons, use);
   row.addEventListener('click', () => {
     // Keep the bag's order, drop what isn't needed and put the new pickups after it.
@@ -724,7 +724,7 @@ function renderFinder(seed) {
   $('finder-target').hidden = target === null;
   if (target === null) {
     stopFinderSearch();
-    results.replaceChildren(finderNote('See every bag that makes an item on your seed, easiest pickups first.'));
+    results.replaceChildren(finderNote('查询当前种子下指定道具的所有配方，优先显示材料容易收集的配方。'));
     renderFinderMatches();
     return;
   }
@@ -740,7 +740,7 @@ function renderFinder(seed) {
   const change = document.createElement('button');
   change.type = 'button';
   change.className = 'btn-ghost';
-  change.textContent = 'Change';
+  change.textContent = '更换';
   change.addEventListener('click', () => {
     state.findTarget = null;
     render();
@@ -751,7 +751,7 @@ function renderFinder(seed) {
 
   if (!craftableItems(state.version).includes(target)) {
     stopFinderSearch();
-    results.replaceChildren(finderNote(`${itemName(target)} can't come out of the bag in ${version.label}.`));
+    results.replaceChildren(finderNote(`在${version.label.replace('Repentance', '忏悔')}中，合成袋无法产出${itemName(target)}。`));
     return;
   }
   if (seed === null) {
@@ -762,12 +762,12 @@ function renderFinder(seed) {
     const go = document.createElement('button');
     go.type = 'button';
     go.className = 'btn-ghost';
-    go.textContent = 'Enter seed';
+    go.textContent = '输入种子';
     go.addEventListener('click', () => {
       seedInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       seedInput.focus({ preventScroll: true });
     });
-    box.append(finderNote('Enter your run seed above and the search will start.'), go);
+    box.append(finderNote('在上方输入本局种子后，将自动开始搜索。'), go);
     results.replaceChildren(box);
     return;
   }
@@ -781,59 +781,59 @@ function renderFinder(seed) {
     const bar = document.createElement('progress');
     bar.max = 100;
     bar.value = pct;
-    status.append(finderNote(`Checking all ${TOTAL_BAGS.toLocaleString()} possible bags… ${pct}%`), bar);
+    bar.setAttribute('aria-label', '配方搜索进度');
+    status.append(finderNote(`正在检查全部 ${TOTAL_BAGS.toLocaleString('zh-CN')} 种材料组合… ${pct}%`), bar);
     results.replaceChildren(status);
     return;
   }
 
   const result = finderResult.result;
   if (result.error) {
-    results.replaceChildren(finderNote('Something went wrong while searching. Try reloading the page.'));
+    results.replaceChildren(finderNote('搜索时出现错误，请尝试刷新页面。'));
     return;
   }
   const { fixed, seeded } = rankedFinder(result);
   const children = [];
   if (fixed.recipes.length) {
-    children.push(finderHeading('Fixed recipe, works on any seed'), recipeList(fixed.recipes));
+    children.push(finderHeading('固定配方，适用于任意种子'), recipeList(fixed.recipes));
   }
   if (!result.total) {
-    children.push(finderHeading('No recipes on this seed'), finderNote(Object.values(state.opts).some(Boolean)
-      ? 'No bag makes this item on this seed with your run modifiers on. Try turning some off.'
-      : 'No bag makes this item on this seed.'));
+    children.push(finderHeading('当前种子下无可用配方'), finderNote(Object.values(state.opts).some(Boolean)
+      ? '当前种子和特殊条件下，没有能合成此道具的配方。可尝试关闭部分特殊条件。'
+      : '当前种子下，没有能合成此道具的配方。'));
     results.replaceChildren(...children);
     return;
   }
   const hidden = result.total - seeded.eligible;
   const hiddenNote = hidden
-    ? ` ${hidden.toLocaleString()} more need pickups you turned off in Settings.`
+    ? ` 另有 ${hidden.toLocaleString('zh-CN')} 种配方需要使用设置中已关闭的掉落物。`
     : '';
   if (!seeded.eligible) {
-    children.push(finderHeading(`${result.total.toLocaleString()} recipe${result.total === 1 ? '' : 's'} on this seed`),
-      finderNote('Every one needs pickups you turned off in Settings.'));
+    children.push(finderHeading(`当前种子下有 ${result.total.toLocaleString('zh-CN')} 种配方`),
+      finderNote('所有配方都需要使用设置中已关闭的掉落物。'));
     results.replaceChildren(...children);
     return;
   }
 
-  const plural = n => `${n.toLocaleString()} recipe${n === 1 ? '' : 's'}`;
+  const recipeCount = n => `${n.toLocaleString('zh-CN')} 种配方`;
   const bagSize = state.bag.length;
   const kept = 8 - seeded.bestAdd;
   if (!bagSize) {
     children.push(
-      finderHeading(`${plural(seeded.eligible)} on this seed`),
-      finderNote('Easiest to collect first. Tap one to fill the bag. Assumes everything is unlocked.' + hiddenNote),
+      finderHeading(`当前种子下有 ${recipeCount(seeded.eligible)}`),
+      finderNote('优先显示材料容易收集的配方，点击即可填入合成袋。假定所有道具均已解锁。' + hiddenNote),
     );
   } else if (seeded.bestAdd === 0) {
-    children.push(finderHeading('Your bag makes this item'));
+    children.push(finderHeading('当前合成袋可合成此道具'));
   } else if (kept === bagSize) {
     children.push(
-      finderHeading(`${plural(seeded.closest)} using everything in your bag`),
-      finderNote(`Add the last ${seeded.bestAdd === 1 ? 'pickup' : `${seeded.bestAdd} pickups`}, easiest first. Tap one to add them.` + hiddenNote),
+      finderHeading(`${recipeCount(seeded.closest)}可利用袋内全部材料`),
+      finderNote(`再添加 ${seeded.bestAdd} 个掉落物即可合成，优先显示容易收集的材料。点击即可添加。` + hiddenNote),
     );
   } else {
     children.push(
-      finderHeading(`Can't finish with all ${bagSize} of your pickups`),
-      finderNote((seeded.closest === 1 ? 'The closest recipe keeps' : `The ${seeded.closest.toLocaleString()} closest recipes keep`)
-        + ` ${kept} of them. Tap one to swap pickups in.` + hiddenNote),
+      finderHeading(`无法保留袋内全部 ${bagSize} 个掉落物完成合成`),
+      finderNote(`最接近的 ${seeded.closest.toLocaleString('zh-CN')} 种配方可保留其中 ${kept} 个掉落物。点击即可替换材料。` + hiddenNote),
     );
   }
 
@@ -841,7 +841,7 @@ function renderFinder(seed) {
   if (bagSize && shown.length > seeded.closest) {
     // The closest recipes, then the ones that need more changes.
     children.push(recipeList(shown.slice(0, seeded.closest)),
-      finderHeading('Next closest'), finderNote('These need more changes to your bag.'),
+      finderHeading('其他相近配方'), finderNote('这些配方需要替换更多袋内材料。'),
       recipeList(shown.slice(seeded.closest)));
   } else {
     children.push(recipeList(shown));
@@ -850,7 +850,7 @@ function renderFinder(seed) {
     const more = document.createElement('button');
     more.type = 'button';
     more.className = 'btn-ghost preview-more';
-    more.textContent = `Show ${seeded.recipes.length - shown.length} more`;
+    more.textContent = `再显示 ${seeded.recipes.length - shown.length} 种配方`;
     more.addEventListener('click', () => {
       finderShowAll = true;
       renderFinder(parseSeed(state.seedText));
@@ -923,7 +923,7 @@ function render() {
   seedInput.classList.toggle('valid', seed !== null);
   seedInput.classList.toggle('invalid', seed === null && text.length === 8);
   status.className = 'seed-status' + (seed !== null ? ' valid' : text.length === 8 ? ' invalid' : '');
-  status.textContent = seed !== null ? '✓' : text.length === 8 ? 'Invalid' : '';
+  status.textContent = seed !== null ? '✓' : text.length === 8 ? '无效' : '';
 
   for (const button of document.querySelectorAll('[data-version]')) {
     button.setAttribute('aria-checked', String(button.dataset.version === state.version));
@@ -935,7 +935,7 @@ function render() {
   const activeModifiers = MODIFIERS.filter(([key]) => state.opts[key]).length;
   const count = $('modifier-count');
   count.hidden = activeModifiers === 0;
-  count.textContent = `${activeModifiers} on`;
+  count.textContent = `已开启 ${activeModifiers} 项`;
 
   renderSettings();
   renderBag();

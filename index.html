@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Tainted Cain Crafting Calculator · Bag of Crafting Recipes by Seed</title>
-  <meta name="description" content="Bag of Crafting calculator for Tainted Cain in The Binding of Isaac: Repentance and Repentance+. Enter your seed and pickups to see the exact item you'll craft, or find recipes for any item.">
+  <title>里该隐合成计算器 · 按种子查询合成袋配方</title>
+  <meta name="description" content="适用于《以撒的结合：忏悔》和《忏悔+》的里该隐合成袋计算器。输入种子和掉落物，查看合成结果，或查询指定道具的合成配方。">
   <link rel="canonical" href="https://akerson.github.io/tboi/">
   <meta name="theme-color" content="#16110e">
   <meta name="color-scheme" content="dark">
@@ -15,23 +15,25 @@
   <link rel="manifest" href="manifest.webmanifest">
 
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Tainted Cain Crafting Calculator">
-  <meta property="og:title" content="Tainted Cain Crafting Calculator">
-  <meta property="og:description" content="Enter your seed and pickups to see the exact item Tainted Cain's Bag of Crafting will make, or find recipes for any item. Repentance and Repentance+.">
+  <meta property="og:site_name" content="里该隐合成计算器">
+  <meta property="og:title" content="里该隐合成计算器">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:description" content="输入种子和掉落物，查看里该隐合成袋的合成结果，或查询指定道具的配方。支持《忏悔》和《忏悔+》。">
   <meta property="og:url" content="https://akerson.github.io/tboi/">
   <meta property="og:image" content="https://akerson.github.io/tboi/assets/icons/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Tainted Cain pixel sprite next to the title Tainted Cain Crafting Calculator">
+  <meta property="og:image:alt" content="里该隐像素立绘与合成计算器的英文标题">
   <meta name="twitter:card" content="summary_large_image">
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "Tainted Cain Crafting Calculator",
+    "name": "里该隐合成计算器",
+    "inLanguage": "zh-CN",
     "url": "https://akerson.github.io/tboi/",
-    "description": "Bag of Crafting calculator for Tainted Cain in The Binding of Isaac: Repentance and Repentance+. Shows the exact item a bag of pickups crafts on your seed, and finds recipes for any item.",
+    "description": "适用于《以撒的结合：忏悔》和《忏悔+》的里该隐合成袋计算器，可按种子计算合成结果并查询道具配方。",
     "applicationCategory": "GameApplication",
     "operatingSystem": "Any",
     "isAccessibleForFree": true,
@@ -39,69 +41,69 @@
   }
   </script>
   <script defer src="https://cloud.umami.is/script.js" data-website-id="d7ac0e49-894d-4589-85c8-c19ab08eb0bb"></script>
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
   <main class="app">
     <header class="masthead">
       <div class="masthead-row">
-        <h1>Tainted Cain Crafting Calculator</h1>
-        <button type="button" id="open-settings" class="btn-ghost btn-icon" aria-label="Settings" title="Settings">⚙</button>
+        <h1>里该隐合成计算器</h1>
+        <button type="button" id="open-settings" class="btn-ghost btn-icon" aria-label="设置" title="设置">⚙</button>
       </div>
-      <p>Enter your run seed and 8 pickups to see the exact item the Bag of Crafting will make, or pick an item to see how to craft it.</p>
+      <p>输入本局种子和 8 个掉落物，查看合成袋的合成结果；也可以选择道具，查询合成配方。</p>
     </header>
 
-    <section class="card setup" aria-label="Run settings">
-      <label class="field-label" for="seed">Run seed</label>
+    <section class="card setup" aria-label="本局设置">
+      <label class="field-label" for="seed">本局种子</label>
       <div class="seed-row">
         <input id="seed" class="seed-input" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
                spellcheck="false" maxlength="9" placeholder="XXXX XXXX" aria-describedby="seed-status">
         <span id="seed-status" class="seed-status" aria-live="polite"></span>
       </div>
-      <p class="hint">Shown on the pause screen. Letters O and I are read as 0 and 1.</p>
+      <p class="hint">可在暂停界面查看。字母 O 和 I 会自动识别为数字 0 和 1。</p>
 
-      <span class="field-label" id="version-label">Game version</span>
+      <span class="field-label" id="version-label">游戏版本</span>
       <div class="segmented" role="radiogroup" aria-labelledby="version-label">
         <button type="button" role="radio" data-version="rep">
-          <strong>Repentance</strong><small>Nintendo Switch</small>
+          <strong>忏悔</strong><small>Repentance · Nintendo Switch</small>
         </button>
         <button type="button" role="radio" data-version="repplus">
-          <strong>Repentance+</strong><small>PC, Switch 2</small>
+          <strong>忏悔+</strong><small>Repentance+ · PC、Switch 2</small>
         </button>
       </div>
     </section>
 
     <section class="card bag-card" aria-labelledby="bag-title">
       <div class="card-head">
-        <h2 id="bag-title">Bag <span id="bag-count" class="muted">0/8</span></h2>
-        <span id="bag-score" class="chip" title="Bag value decides the item quality range"></span>
-        <button type="button" id="clear" class="btn-ghost">Clear</button>
+        <h2 id="bag-title">合成袋 <span id="bag-count" class="muted">0/8</span></h2>
+        <span id="bag-score" class="chip" title="袋内掉落物的总价值决定道具的品质范围"></span>
+        <button type="button" id="clear" class="btn-ghost">清空</button>
       </div>
-      <div id="bag" class="bag" aria-label="Pickups in the bag. Tap one to remove it."></div>
+      <div id="bag" class="bag" aria-label="袋内掉落物，点击即可移除。"></div>
 
       <div id="result" class="result" aria-live="polite"></div>
     </section>
 
     <section class="card picker-card" aria-labelledby="picker-title">
       <div class="card-head">
-        <h2 id="picker-title">Add pickups</h2>
-        <span class="muted small">Tap to add &middot; badge = value</span>
+        <h2 id="picker-title">添加掉落物</h2>
+        <span class="muted small">点击添加 · 角标为价值</span>
       </div>
       <div id="picker"></div>
     </section>
 
     <section id="preview" class="card preview" aria-labelledby="preview-title" hidden>
       <div class="preview-head">
-        <h2 id="preview-title">What you could make</h2>
+        <h2 id="preview-title">可合成的道具</h2>
         <span id="preview-count" class="muted small"></span>
       </div>
       <p id="preview-note" class="hint"></p>
       <div class="preview-tools">
-        <input id="preview-search" class="preview-search" type="search" placeholder="Search items" autocomplete="off"
-               aria-label="Search possible items">
-        <div class="segmented segmented-small" role="radiogroup" aria-label="Sort items">
-          <button type="button" role="radio" data-sort="name">A–Z</button>
-          <button type="button" role="radio" data-sort="quality">Quality</button>
+        <input id="preview-search" class="preview-search" type="search" placeholder="搜索道具（支持中英文）" autocomplete="off"
+               aria-label="搜索可合成的道具">
+        <div class="segmented segmented-small" role="radiogroup" aria-label="道具排序">
+          <button type="button" role="radio" data-sort="name">名称</button>
+          <button type="button" role="radio" data-sort="quality">品质</button>
         </div>
       </div>
       <ol id="preview-list" class="preview-list"></ol>
@@ -110,11 +112,11 @@
 
     <section class="card finder" aria-labelledby="finder-title">
       <div class="card-head">
-        <h2 id="finder-title">Find recipes for an item</h2>
+        <h2 id="finder-title">查询道具配方</h2>
       </div>
       <div id="finder-pick">
-        <input id="finder-search" class="preview-search" type="search" placeholder="Search for an item, e.g. Sacred Heart"
-               autocomplete="off" aria-label="Search for an item to craft" aria-controls="finder-matches">
+        <input id="finder-search" class="preview-search" type="search" placeholder="搜索道具，如：圣心 / Sacred Heart"
+               autocomplete="off" aria-label="搜索想要合成的道具" aria-controls="finder-matches">
         <ol id="finder-matches" class="preview-list"></ol>
       </div>
       <div id="finder-target" hidden></div>
@@ -123,53 +125,52 @@
 
     <details class="card modifiers" id="modifiers">
       <summary>
-        <h2>Run modifiers</h2>
+        <h2>本局特殊条件</h2>
         <span id="modifier-count" class="chip chip-warn" hidden></span>
       </summary>
-      <p class="hint">These change which items the bag is allowed to give. Leave them all off for a normal run.</p>
+      <p class="hint">这些条件会影响合成袋可产出的道具。普通对局请全部关闭。</p>
       <div id="modifier-list" class="modifier-list"></div>
     </details>
 
     <footer class="footer">
       <p>
-        The crafting algorithm and item data were reverse engineered by
-        <a href="https://github.com/frto027/IsaacBagOfCraftingHuijiGadget">frto027</a> for the
-        <a href="https://isaac.huijiwiki.com/wiki/C710">Huiji Isaac wiki</a>.
-        Made with <a href="https://claude.com/claude-code">Claude Code</a>.
-        <a href="https://github.com/akerson/tboi">Source on GitHub</a>.
+        合成算法与道具数据由
+        <a href="https://github.com/frto027/IsaacBagOfCraftingHuijiGadget">frto027</a> 为
+        <a href="https://isaac.huijiwiki.com/wiki/C710">以撒的结合中文维基</a> 逆向整理。
+        使用 <a href="https://claude.com/claude-code">Claude Code</a> 开发。
+        <a href="https://github.com/akerson/tboi">GitHub 源码</a>。
       </p>
       <p>
-        Fan made and not affiliated with Nicalis or Edmund McMillen. Game sprites &copy; their owners.
-        Licensed <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a>.
+        本项目为玩家作品，与 Nicalis 或 Edmund McMillen 无关联。游戏素材版权 &copy; 归原权利人所有。
+        采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> 许可协议。
       </p>
     </footer>
   </main>
 
   <dialog id="settings" class="settings" aria-labelledby="settings-title">
     <div class="card-head">
-      <h2 id="settings-title">Settings</h2>
-      <button type="button" id="close-settings" class="btn-ghost">Done</button>
+      <h2 id="settings-title">设置</h2>
+      <button type="button" id="close-settings" class="btn-ghost">完成</button>
     </div>
     <label class="modifier">
       <input type="checkbox" id="compact-picker">
-      <span><strong>Compact pickup buttons</strong><small>Hide pickup names so the picker fits on one screen.</small></span>
+      <span><strong>紧凑掉落物按钮</strong><small>隐藏掉落物名称，让选择区在一屏内显示。</small></span>
     </label>
-    <h3 class="settings-subhead">Pickups to suggest</h3>
-    <p class="hint">Turn off pickups you rarely find. They're left out of "What you could make" and recipe results,
-      unless they're already in your bag.</p>
+    <h3 class="settings-subhead">参与推荐的掉落物</h3>
+    <p class="hint">可以关闭不常见的掉落物。除非袋内已有这些材料，否则“可合成的道具”和配方结果不会推荐使用它们。</p>
     <div class="settings-actions">
-      <button type="button" id="exclude-none" class="btn-ghost">All on</button>
-      <button type="button" id="exclude-rare" class="btn-ghost">Rare ones off</button>
+      <button type="button" id="exclude-none" class="btn-ghost">全部开启</button>
+      <button type="button" id="exclude-rare" class="btn-ghost">关闭稀有掉落物</button>
     </div>
     <div id="exclude-list" class="exclude-list"></div>
   </dialog>
 
-  <button type="button" id="dock" class="dock" aria-label="Show bag and result" hidden>
+  <button type="button" id="dock" class="dock" aria-label="查看合成袋与结果" hidden>
     <span id="dock-bag" class="dock-bag"></span>
     <span id="dock-result" class="dock-result"></span>
   </button>
 
   <!-- Bump ?v= here and on every JS import when the files change, so browsers never mix old and new files. -->
-  <script type="module" src="js/app.js?v=5"></script>
+  <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>

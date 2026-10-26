@@ -12,7 +12,7 @@
   --warn: #e7b24a;
   --radius: 14px;
   --gutter: 16px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   font-size: 16px;
   line-height: 1.45;
 }
