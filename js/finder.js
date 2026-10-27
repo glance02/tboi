@@ -10,7 +10,7 @@
 // A draw is resolved with a binary search over the table; draws that land too close to a
 // boundary for float rounding to be ignored fall back to the exact scan in drawItem().
 
-import { PICKUPS, PICKUP_COUNT, rngNext, qualityRange, poolFilterOk, itemWeights, drawItem, drawPoint, rollFilterOk } from './crafting.js?v=6';
+import { PICKUPS, PICKUP_COUNT, rngNext, qualityRange, poolFilterOk, itemWeights, drawItem, drawPoint, rollFilterOk } from './crafting.js?v=12';
 
 export const TOTAL_BAGS = 30260340;
 
@@ -204,6 +204,123 @@ export function findRecipes(version, seed, target, opts = {}, { onProgress } = {
   visit(0, 1, seed, 0, 0, 0);
   onProgress?.(checked);
   return { fixed, packed: packed.slice(0, total * 8), total };
+}
+
+/**
+ * Exact minimum TOTAL pickup value for several items in one search. Bags are
+ * visited by increasing score, so the first match for an item proves its minimum.
+ * Exclusions apply to the whole recipe, independently of the current bag.
+ * Returns one { id, score, recipe } per target; score/recipe are null if unreachable.
+ */
+export function findLowestCosts(version, seed, targets, opts = {}, excluded = [], { onProgress } = {}) {
+  const ids = [...new Set(targets)].filter(id => version.items[id]);
+  const result = new Map(ids.map(id => [id, { id, score: null, recipe: null }]));
+  const banned = new Set(excluded);
+  const allowed = PICKUPS.flatMap((p, id) => p && !banned.has(id) ? [id] : []);
+  if (!allowed.length || !ids.length) return [...result.values()];
+
+  const fixedBags = new Set(Object.keys(version.fixed));
+  const fixed = Object.entries(version.fixed).flatMap(([key, id]) => {
+    const recipe = key.split(',').map(Number);
+    return result.has(id) && recipe.every(p => !banned.has(p))
+      ? [{ id, score: recipe.reduce((sum, p) => sum + PICKUPS[p].value, 0), recipe }] : [];
+  });
+  const gates = { 0: 0, 1: 0, 2: 0, 4: 4, 3: 3, 5: 6, 8: 5, 12: 7, 9: 25, 7: 29, 26: 23 };
+  const pools = ids.flatMap(id => poolFilterOk(version.items[id], opts)
+    ? Object.entries(gates).filter(([pool]) => version.pools[pool].some(([item]) => item === id))
+      .map(([pool, gate]) => ({ id, pool: Number(pool), gate, quality: version.items[id][1] })) : []);
+  const pending = new Set([...pools.map(p => p.id), ...fixed.map(p => p.id)]);
+  const min = new Array(allowed.length), max = new Array(allowed.length);
+  for (let i = allowed.length - 1; i >= 0; i--) {
+    min[i] = Math.min(PICKUPS[allowed[i]].value, min[i + 1] ?? Infinity);
+    max[i] = Math.max(PICKUPS[allowed[i]].value, max[i + 1] ?? -Infinity);
+  }
+  const counts = new Array(PICKUP_COUNT).fill(0);
+  const bag = new Array(8);
+
+  for (let score = min[0] * 8; score <= max[0] * 8 && pending.size; score++) {
+    for (const entry of fixed) if (entry.score === score && pending.has(entry.id)) {
+      result.set(entry.id, entry);
+      pending.delete(entry.id);
+    }
+    const relevant = pools.filter(p => {
+      const [low, high] = qualityRange([3, 4, 5].includes(p.pool) ? score - 5 : score);
+      return pending.has(p.id) && p.quality >= low && p.quality <= high;
+    });
+    // A new cache per score bounds memory even for large collections.
+    const tables = new Map();
+    function table(specials, blocked) {
+      const key = specials * 2 + (counts[23] && blocked ? 1 : 0);
+      if (tables.has(key)) return tables.get(key);
+      if (!relevant.some(p => (!p.gate || counts[p.gate]) && (p.pool !== 26 || !blocked))) {
+        tables.set(key, null);
+        return null;
+      }
+      const { weights, total } = itemWeights(version, counts, score, opts);
+      if (!relevant.some(p => weights[p.id] > 0)) {
+        tables.set(key, null);
+        return null;
+      }
+      const itemIds = [], cumulative = [];
+      let sum = 0;
+      for (let id = 0; id < weights.length; id++) if (weights[id] > 0) {
+        sum += weights[id];
+        itemIds.push(id);
+        cumulative.push(sum);
+      }
+      const entry = { weights, total, itemIds, cumulative, margin: total * 1e-4 };
+      tables.set(key, entry);
+      return entry;
+    }
+    function select(entry, rng) {
+      const point = drawPoint(entry.total, rng);
+      const { cumulative, itemIds, margin } = entry;
+      let lo = 0, hi = cumulative.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (cumulative[mid] > point) hi = mid; else lo = mid + 1;
+      }
+      const below = lo === 0 ? 0 : cumulative[lo - 1];
+      return lo === cumulative.length || point - below < margin || cumulative[lo] - point < margin
+        ? drawItem(entry.weights, entry.total, rng) : itemIds[lo];
+    }
+    function visit(depth, from, rng, value, specials, blocked) {
+      const slots = 8 - depth;
+      if (!pending.size || from === allowed.length || value + slots * min[from] > score
+          || value + slots * max[from] < score) return;
+      for (let i = from; i < allowed.length; i++) {
+        const id = allowed[i], nextValue = value + PICKUPS[id].value;
+        if (nextValue > score) continue;
+        bag[depth] = id;
+        counts[id]++;
+        const slot = SPECIAL_SLOT[id];
+        const signature = slot < 0 ? specials : specials + 16 ** slot;
+        const nextBlocked = blocked + BLOCKS_PLANETARIUM[id];
+        let nextRng = rngNext(rng, id);
+        if (depth < 7) {
+          visit(depth + 1, i, nextRng, nextValue, signature, nextBlocked);
+        } else if (nextValue === score) {
+          const entry = table(signature, nextBlocked);
+          if (entry) {
+            let selected;
+            for (let attempt = 1; attempt <= 20; attempt++) {
+              nextRng = rngNext(nextRng, 6);
+              selected = select(entry, nextRng);
+              if (rollFilterOk(version.items[selected], selected, seed, opts)) break;
+            }
+            if (pending.has(selected) && !fixedBags.has(bag.join(','))) {
+              result.set(selected, { id: selected, score, recipe: bag.slice() });
+              pending.delete(selected);
+            }
+          }
+        }
+        counts[id]--;
+      }
+    }
+    if (relevant.length) visit(0, 0, seed, 0, 0, 0);
+    onProgress?.({ score, found: [...result.values()].filter(e => e.recipe).length, total: ids.length });
+  }
+  return [...result.values()];
 }
 
 /** Packs recipes (arrays of 8 pickup ids) the way findRecipes() does. */

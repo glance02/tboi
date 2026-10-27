@@ -1,5 +1,5 @@
-import data from './data.js?v=6';
-import chinese from './zh-cn.js?v=6';
+import data from './data.js?v=12';
+import chinese from './zh-cn.js?v=12';
 
 // Keep translations separate so rebuilding game data cannot overwrite them.
 export const itemName = id => chinese[id]?.[0] ?? data.names[id]?.[0] ?? `道具 #${id}`;

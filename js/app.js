@@ -1,7 +1,8 @@
-import data from './data.js?v=6';
-import { itemName, itemQuote, matchesItem, startsWithItem, compareItems, wikiUrl } from './localization.js?v=6';
-import { PICKUPS, craft, parseSeed, normalizeSeed, bagScore } from './crafting.js?v=6';
-import { recipeCost, rankRecipes, packRecipes, TOTAL_BAGS } from './finder.js?v=6';
+import data from './data.js?v=12';
+import { itemName, itemQuote, matchesItem, startsWithItem, compareItems, wikiUrl } from './localization.js?v=12';
+import { PICKUPS, craft, parseSeed, normalizeSeed, bagScore } from './crafting.js?v=12';
+import { recipeCost, rankRecipes, packRecipes, TOTAL_BAGS } from './finder.js?v=12';
+import { HEALTH_UPS, getFavoriteIds, toggleFavorite, serializeProjectFavorites, parseProjectFavorites, favoriteStateFromPreset } from './collections.js?v=12';
 
 const PICKUP_GROUPS = [
   ['心', [1, 2, 3, 4, 5, 6, 7]],
@@ -40,6 +41,10 @@ const state = {
   findTarget: null,
   excluded: [], // pickup ids left out of suggestions
   compactPicker: false,
+  favorites: [],
+  useProjectFavorites: true,
+  excludedProjectFavorites: [],
+  collectionTab: 'health',
   ...loadState(),
 };
 
@@ -56,6 +61,12 @@ function loadState() {
       findTarget: Number.isInteger(saved.findTarget) && data.names[saved.findTarget] ? saved.findTarget : null,
       excluded: Array.isArray(saved.excluded) ? saved.excluded.filter(id => PICKUPS[id]) : [],
       compactPicker: saved.compactPicker === true,
+      favorites: Array.isArray(saved.favorites)
+        ? [...new Set(saved.favorites.filter(id => Number.isInteger(id) && data.names[id]))] : [],
+      useProjectFavorites: saved.useProjectFavorites !== false,
+      excludedProjectFavorites: Array.isArray(saved.excludedProjectFavorites)
+        ? [...new Set(saved.excludedProjectFavorites.filter(id => Number.isInteger(id) && data.names[id]))] : [],
+      collectionTab: saved.collectionTab === 'favorites' ? 'favorites' : 'health',
     };
   } catch {
     return {};
@@ -227,7 +238,10 @@ function renderModifierList() {
 // ---------- settings ----------
 
 const settings = $('settings');
-$('open-settings').addEventListener('click', () => settings.showModal());
+$('open-settings').addEventListener('click', () => {
+  renderSettings();
+  settings.showModal();
+});
 $('close-settings').addEventListener('click', () => settings.close());
 // Tapping the backdrop closes the dialog too.
 settings.addEventListener('click', event => {
@@ -237,6 +251,50 @@ settings.addEventListener('click', event => {
 $('compact-picker').addEventListener('change', event => {
   state.compactPicker = event.target.checked;
   render();
+});
+$('use-project-favorites').addEventListener('change', event => {
+  state.useProjectFavorites = event.target.checked;
+  $('project-favorites-status').textContent = '';
+  render();
+});
+
+const PROJECT_FAVORITES_FILE = 'project-favorites.js';
+
+function downloadProjectFavorites() {
+  const ids = getFavoriteIds(state);
+  const file = new Blob([serializeProjectFavorites(ids, itemName)], { type: 'text/javascript;charset=utf-8' });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = PROJECT_FAVORITES_FILE;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $('project-favorites-status').textContent = `已生成 ${ids.length} 件收藏的预设文件，可通过“导入预设”恢复。`;
+}
+
+$('download-project-favorites').addEventListener('click', downloadProjectFavorites);
+$('import-project-favorites').addEventListener('click', () => $('import-project-favorites-file').click());
+$('import-project-favorites-file').addEventListener('change', async event => {
+  const input = event.target;
+  const file = input.files?.[0];
+  if (!file) return;
+  const button = $('import-project-favorites');
+  const status = $('project-favorites-status');
+  button.disabled = true;
+  try {
+    if (file.size > 1024 * 1024) throw new Error('预设文件过大，请选择之前下载的收藏预设。');
+    const ids = parseProjectFavorites(await file.text(), id => !!data.names[id]);
+    Object.assign(state, favoriteStateFromPreset(ids));
+    render();
+    status.textContent = `已导入 ${ids.length} 件收藏，已保存在本机。`;
+  } catch (error) {
+    status.textContent = error.message || '读取预设失败，未修改当前收藏。';
+  } finally {
+    button.disabled = false;
+    input.value = '';
+  }
 });
 $('exclude-none').addEventListener('click', () => {
   state.excluded = [];
@@ -271,6 +329,8 @@ function buildExcludeList() {
 
 function renderSettings() {
   $('compact-picker').checked = state.compactPicker;
+  $('use-project-favorites').checked = state.useProjectFavorites;
+  $('project-favorites-count').textContent = getFavoriteIds(state).length;
   $('picker').classList.toggle('compact', state.compactPicker);
   for (const [id, button] of excludeButtons) {
     const on = !state.excluded.includes(id);
@@ -553,7 +613,7 @@ let finderShowAll = false;
 function startFinderSearch(key, seed) {
   if (finderJob?.key === key) return;
   finderWorker?.terminate();
-  const worker = new Worker(new URL('./finder-worker.js?v=6', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./finder-worker.js?v=12', import.meta.url), { type: 'module' });
   finderWorker = worker;
   finderJob = { key, progress: 0 };
   const finish = result => {
@@ -582,8 +642,185 @@ function selectFindTarget(id) {
   state.findTarget = id;
   finderShowAll = false;
   $('finder-search').value = '';
+  $('finder-matches').replaceChildren();
   render();
+  $('finder-target').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+// ---------- health upgrades + personal collection ----------
+
+let collectionExpanded = false;
+let collectionJob = null;
+const collectionCache = new Map();
+let collectionCosts = null;
+
+function favoriteButton(id) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'favorite-button';
+  button.dataset.favorite = id;
+  const saved = getFavoriteIds(state).includes(id);
+  button.textContent = saved ? '★' : '☆';
+  button.setAttribute('aria-pressed', String(saved));
+  button.title = `${saved ? '取消收藏' : '收藏'}${itemName(id)}`;
+  button.setAttribute('aria-label', button.title);
+  button.addEventListener('click', () => {
+    const inCollection = !!button.closest('.collection');
+    Object.assign(state, toggleFavorite(state, id));
+    $('project-favorites-status').textContent = '';
+    saveState();
+    renderCollection(parseSeed(state.seedText));
+    renderFinder(parseSeed(state.seedText));
+    // Preserve keyboard focus when the card survives a collection update.
+    const scope = inCollection ? $('collection-list') : document.querySelector('.finder');
+    (scope.querySelector(`[data-favorite="${id}"]`) ?? $('collection-favorites')).focus({ preventScroll: true });
+  });
+  return button;
+}
+
+function stopCollectionSearch() {
+  if (!collectionJob) return;
+  collectionJob.worker.terminate();
+  collectionCache.delete(collectionJob.key);
+  collectionJob = null;
+}
+
+function collectionCostEntries(seed) {
+  if (seed === null) {
+    stopCollectionSearch();
+    return null;
+  }
+  const available = new Set(craftableItems(state.version));
+  const targets = [...new Set([...Object.keys(HEALTH_UPS).map(Number), ...getFavoriteIds(state), state.findTarget])]
+    .filter(id => available.has(id)).sort((a, b) => a - b);
+  const key = JSON.stringify([state.version, seed, state.opts, [...state.excluded].sort((a, b) => a - b), targets]);
+  if (collectionJob && collectionJob.key !== key) stopCollectionSearch();
+  if (collectionCache.has(key)) return collectionCache.get(key);
+  const entry = { pending: true, entries: new Map(), progress: null, error: false };
+  collectionCache.set(key, entry);
+  while (collectionCache.size > 6) collectionCache.delete(collectionCache.keys().next().value);
+  const worker = new Worker(new URL('./costs-worker.js?v=12', import.meta.url), { type: 'module' });
+  collectionJob = { key, worker };
+  worker.onmessage = ({ data: message }) => {
+    if (collectionJob?.worker !== worker) return;
+    if (message.result) {
+      entry.pending = false;
+      entry.entries = new Map(message.result.map(item => [item.id, item]));
+      worker.terminate();
+      collectionJob = null;
+    } else entry.progress = message.progress;
+    renderCollection(parseSeed(state.seedText));
+  };
+  worker.onerror = () => {
+    if (collectionJob?.worker !== worker) return;
+    entry.pending = false;
+    entry.error = true;
+    worker.terminate();
+    collectionJob = null;
+    renderCollection(parseSeed(state.seedText));
+  };
+  worker.postMessage({ version: state.version, seed, targets, opts: state.opts, excluded: state.excluded });
+  return entry;
+}
+
+function renderLowestRecipe() {
+  const box = $('finder-cheapest');
+  const entry = collectionCosts?.entries.get(state.findTarget);
+  box.replaceChildren();
+  if (!entry?.recipe) return;
+  const header = document.createElement('div');
+  header.className = 'collection-heading';
+  const title = document.createElement('h3');
+  title.textContent = '最低价值配方';
+  const cost = document.createElement('span');
+  cost.className = 'chip cost-chip';
+  cost.textContent = `材料总价值 ${entry.score}`;
+  header.append(title, cost);
+  const ranked = rankRecipes(packRecipes([entry.recipe]), state.bag, [], 1);
+  box.append(header, recipeList(ranked.recipes));
+}
+
+function renderCollection(seed) {
+  collectionCosts = collectionCostEntries(seed);
+  const available = new Set(craftableItems(state.version));
+  const favorites = getFavoriteIds(state);
+  const ids = (state.collectionTab === 'health' ? Object.keys(HEALTH_UPS).map(Number) : favorites)
+    .filter(id => available.has(id));
+  const entries = collectionCosts?.entries;
+  ids.sort((a, b) => (entries?.get(a)?.score ?? Infinity) - (entries?.get(b)?.score ?? Infinity) || compareItems(a, b));
+  $('favorite-count').textContent = favorites.length;
+  for (const tab of document.querySelectorAll('[data-collection]')) {
+    const selected = tab.dataset.collection === state.collectionTab;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  $('collection-panel').setAttribute('aria-labelledby', `collection-${state.collectionTab}`);
+  const status = $('collection-status');
+  if (!ids.length) {
+    status.textContent = favorites.length && state.collectionTab === 'favorites'
+      ? '收藏的道具在当前版本中无法合成。可切换游戏版本，或搜索其他道具加入收藏。'
+      : '还没有收藏。搜索喜欢的道具，点击 ☆，就能在这里快速找到。';
+  } else if (!collectionCosts) status.textContent = '输入本局种子，自动计算最低合成价值并排序。';
+  else if (collectionCosts.error) status.textContent = '价值计算失败，请刷新页面重试。';
+  else if (collectionCosts.pending) {
+    const progress = collectionCosts.progress;
+    status.textContent = '正在计算当前种子的最低材料价值…' + (progress ? ` 已找到 ${progress.found}/${progress.total} 件。` : '');
+  } else status.textContent = `${ids.length} 件道具 · 点击查配方，☆ 加入收藏`;
+  const rows = ids.map(id => {
+    const li = document.createElement('li');
+    li.className = 'collection-card' + (state.findTarget === id ? ' selected' : '');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'collection-item';
+    const entry = entries?.get(id);
+    const costText = entry?.score != null ? `最低价值 ${entry.score}`
+      : collectionCosts?.pending ? '计算中…' : collectionCosts?.error ? '计算失败' : seed === null ? '待输入种子' : '无可用配方';
+    button.setAttribute('aria-label', `查询${itemName(id)}的配方，${costText}`);
+    button.setAttribute('aria-pressed', String(state.findTarget === id));
+    const name = document.createElement('strong');
+    name.className = 'collection-name';
+    name.textContent = itemName(id);
+    const effect = document.createElement('span');
+    effect.className = 'collection-effect';
+    effect.textContent = HEALTH_UPS[id] ? `+${HEALTH_UPS[id]} 心上限` : `品质 ${data.versions[state.version].items[id][1]}`;
+    const cost = document.createElement('span');
+    cost.className = 'collection-cost' + (entry?.score != null ? ' known' : '');
+    cost.textContent = costText;
+    button.append(itemIcon(id, 40), name, effect, cost);
+    button.addEventListener('click', () => selectFindTarget(id));
+    li.append(button, favoriteButton(id));
+    return li;
+  });
+  const list = $('collection-list');
+  list.replaceChildren(...rows);
+  list.classList.toggle('expanded', collectionExpanded);
+  const more = $('collection-more');
+  more.hidden = ids.length <= (narrowScreen.matches ? 6 : 8);
+  more.textContent = collectionExpanded ? '收起道具' : `展开全部 ${ids.length} 件`;
+  more.setAttribute('aria-expanded', String(collectionExpanded));
+  renderLowestRecipe();
+}
+
+for (const tab of document.querySelectorAll('[data-collection]')) {
+  tab.addEventListener('click', () => {
+    state.collectionTab = tab.dataset.collection;
+    collectionExpanded = false;
+    renderCollection(parseSeed(state.seedText));
+    saveState();
+  });
+  tab.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? $('collection-health') : event.key === 'End' ? $('collection-favorites')
+      : $(state.collectionTab === 'health' ? 'collection-favorites' : 'collection-health');
+    next.click();
+    next.focus();
+  });
+}
+$('collection-more').addEventListener('click', () => {
+  collectionExpanded = !collectionExpanded;
+  renderCollection(parseSeed(state.seedText));
+});
 
 function renderFinderMatches() {
   const list = $('finder-matches');
@@ -609,7 +846,10 @@ function renderFinderMatches() {
     info.append(name, stars(version.items[id][1]));
     row.append(itemIcon(id, 40), info);
     row.addEventListener('click', () => selectFindTarget(id));
-    li.append(row);
+    const match = document.createElement('div');
+    match.className = 'finder-match';
+    match.append(row, favoriteButton(id));
+    li.append(match);
     return li;
   });
   if (!rows.length) {
@@ -746,7 +986,7 @@ function renderFinder(seed) {
     render();
     $('finder-search').focus();
   });
-  head.append(itemIcon(target, 40), info, change);
+  head.append(itemIcon(target, 40), info, favoriteButton(target), change);
   $('finder-target').replaceChildren(head);
 
   if (!craftableItems(state.version).includes(target)) {
@@ -866,7 +1106,7 @@ $('finder-search').addEventListener('keydown', event => {
 });
 
 // ---------- bottom dock ----------
-// On phones the picker sits below the bag, so a small dock keeps the bag and result in view.
+// On phones a small dock keeps the bag and result in view while browsing above it.
 
 const dock = $('dock');
 const narrowScreen = window.matchMedia('(max-width: 719px)');
@@ -912,6 +1152,7 @@ new IntersectionObserver(([entry]) => {
   updateDockVisibility();
 }).observe(document.querySelector('.bag-card'));
 narrowScreen.addEventListener('change', updateDockVisibility);
+narrowScreen.addEventListener('change', () => renderCollection(parseSeed(state.seedText)));
 dock.addEventListener('click', () => document.querySelector('.bag-card').scrollIntoView({ behavior: 'smooth', block: 'start' }));
 
 // ---------- render ----------
@@ -942,6 +1183,7 @@ function render() {
   const outcome = computeOutcome(seed);
   renderResult(outcome);
   renderPreview(seed);
+  renderCollection(seed);
   renderFinder(seed);
   renderDock(outcome);
   saveState();

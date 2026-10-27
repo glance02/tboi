@@ -41,7 +41,7 @@
   }
   </script>
   <script defer src="https://cloud.umami.is/script.js" data-website-id="d7ac0e49-894d-4589-85c8-c19ab08eb0bb"></script>
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
   <main class="app">
@@ -73,24 +73,32 @@
       </div>
     </section>
 
-    <section class="card bag-card" aria-labelledby="bag-title">
-      <div class="card-head">
-        <h2 id="bag-title">合成袋 <span id="bag-count" class="muted">0/8</span></h2>
-        <span id="bag-score" class="chip" title="袋内掉落物的总价值决定道具的品质范围"></span>
-        <button type="button" id="clear" class="btn-ghost">清空</button>
-      </div>
-      <div id="bag" class="bag" aria-label="袋内掉落物，点击即可移除。"></div>
+    <div class="tools-column">
+      <section class="card collection" aria-labelledby="collection-title">
+        <div class="collection-heading">
+          <h2 id="collection-title">常用道具</h2>
+          <span class="small muted">材料总价值 ↑</span>
+        </div>
+        <div class="collection-tabs" role="tablist" aria-label="道具集合">
+          <button type="button" id="collection-health" role="tab" data-collection="health" aria-controls="collection-panel" aria-selected="true">♥ 加血上限</button>
+          <button type="button" id="collection-favorites" role="tab" data-collection="favorites" aria-controls="collection-panel" aria-selected="false" tabindex="-1">★ 我的收藏 <span id="favorite-count">0</span></button>
+        </div>
+        <div id="collection-panel" role="tabpanel" aria-labelledby="collection-health">
+          <p id="collection-status" class="hint" role="status"></p>
+          <ol id="collection-list" class="collection-list"></ol>
+          <button type="button" id="collection-more" class="btn-ghost collection-more" aria-expanded="false" aria-controls="collection-list" hidden>展开全部</button>
+        </div>
+        <p class="collection-note">按 8 份材料的最低价值总和升序，遵循掉落物设置；假定道具均已解锁。</p>
+      </section>
 
-      <div id="result" class="result" aria-live="polite"></div>
-    </section>
-
-    <section class="card picker-card" aria-labelledby="picker-title">
-      <div class="card-head">
-        <h2 id="picker-title">添加掉落物</h2>
-        <span class="muted small">点击添加 · 角标为价值</span>
-      </div>
-      <div id="picker"></div>
-    </section>
+      <section class="card picker-card" aria-labelledby="picker-title">
+        <div class="card-head">
+          <h2 id="picker-title">添加掉落物</h2>
+          <span class="muted small">点击添加 · 角标为价值</span>
+        </div>
+        <div id="picker"></div>
+      </section>
+    </div>
 
     <section id="preview" class="card preview" aria-labelledby="preview-title" hidden>
       <div class="preview-head">
@@ -120,7 +128,19 @@
         <ol id="finder-matches" class="preview-list"></ol>
       </div>
       <div id="finder-target" hidden></div>
+      <div id="finder-cheapest"></div>
       <div id="finder-results"></div>
+    </section>
+
+    <section class="card bag-card" aria-labelledby="bag-title">
+      <div class="card-head">
+        <h2 id="bag-title">合成袋 <span id="bag-count" class="muted">0/8</span></h2>
+        <span id="bag-score" class="chip" title="袋内掉落物的总价值决定道具的品质范围"></span>
+        <button type="button" id="clear" class="btn-ghost">清空</button>
+      </div>
+      <div id="bag" class="bag" aria-label="袋内掉落物，点击即可移除。"></div>
+
+      <div id="result" class="result" aria-live="polite"></div>
     </section>
 
     <details class="card modifiers" id="modifiers">
@@ -156,6 +176,18 @@
       <input type="checkbox" id="compact-picker">
       <span><strong>紧凑掉落物按钮</strong><small>隐藏掉落物名称，让选择区在一屏内显示。</small></span>
     </label>
+    <h3 class="settings-subhead">项目收藏</h3>
+    <label class="modifier">
+      <input type="checkbox" id="use-project-favorites">
+      <span><strong>使用项目预设收藏</strong><small>开启后，将项目预设加入“我的收藏”；关闭后，只显示本机个人收藏。</small></span>
+    </label>
+    <p class="hint">当前收藏 <span id="project-favorites-count">0</span> 件。下载预设可备份或分享，导入之前下载的文件可恢复收藏。导入会替换当前收藏，并保存在本机。</p>
+    <div class="settings-actions">
+      <button type="button" id="download-project-favorites" class="btn-ghost">下载预设</button>
+      <button type="button" id="import-project-favorites" class="btn-ghost">导入预设</button>
+    </div>
+    <input type="file" id="import-project-favorites-file" accept=".js,text/javascript,application/javascript" hidden>
+    <p id="project-favorites-status" class="hint" role="status"></p>
     <h3 class="settings-subhead">参与推荐的掉落物</h3>
     <p class="hint">可以关闭不常见的掉落物。除非袋内已有这些材料，否则“可合成的道具”和配方结果不会推荐使用它们。</p>
     <div class="settings-actions">
@@ -171,6 +203,6 @@
   </button>
 
   <!-- Bump ?v= here and on every JS import when the files change, so browsers never mix old and new files. -->
-  <script type="module" src="js/app.js?v=6"></script>
+  <script type="module" src="js/app.js?v=12"></script>
 </body>
 </html>

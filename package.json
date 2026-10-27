@@ -5,6 +5,8 @@
   "scripts": {
     "data": "node scripts/extract-data.mjs",
     "test": "node scripts/test.mjs",
-    "test:localization": "node scripts/test-localization.mjs"
+    "test:localization": "node scripts/test-localization.mjs",
+    "test:collections": "node scripts/test-collections.mjs",
+    "test:favorites": "node scripts/test-favorites.mjs"
   }
 }
